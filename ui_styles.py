@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
+import os
+
 
 COLORS = {
     "bg": "#eef3f8",
@@ -23,7 +25,7 @@ FONT_TITLE = ("Arial", 18, "bold")
 FONT_SUBTITLE = ("Arial", 14, "bold")
 FONT_HEADER = ("Arial", 13, "bold")
 FONT_LABEL = ("Arial", 11)
-FONT_BUTTON = ("Arial", 10, "bold")
+FONT_BUTTON = ("Arial", 13, "bold")
 FONT_TEXT = ("Arial", 11)
 FONT_BIG = ("Arial", 24, "bold")
 
@@ -70,13 +72,17 @@ TRANSLATIONS = {
     "description": {"en": "Description", "ar": "الوصف"},
     "price": {"en": "Price", "ar": "السعر"},
     "total_price": {"en": "Total Price", "ar": "الإجمالي"},
-    "summary": {"en": "Summary", "ar": "الملخص"},
+    "Order_Actions": {"en": "Update Order Status", "ar": "تحديث حالة الطلب"},
     "order_id": {"en": "Order ID", "ar": "رقم الطلب"},
     "created_at": {"en": "Created At", "ar": "تاريخ الإنشاء"},
     "queued": {"en": "Queued", "ar": "في الانتظار"},
     "preparing": {"en": "Preparing", "ar": "قيد التحضير"},
     "ready": {"en": "Ready", "ar": "جاهز"},
     "completed": {"en": "Completed", "ar": "مكتمل"},
+    "ready_orders": {"en": "Ready Orders", "ar": "الطلبات الجاهزة"},
+    "completed_orders": {"en": "Completed Orders", "ar": "الطلبات المكتملة"},
+    "order_history": {"en": "Order History", "ar": "سجل الطلبات"},
+    "order_details": {"en": "Order Details", "ar": "تفاصيل الطلب"},
     "select_item": {"en": "Please select an item", "ar": "يرجى اختيار صنف"},
     "select_order": {"en": "Please select an order", "ar": "يرجى اختيار طلب"},
     "invalid_login": {"en": "Invalid username, password, or role", "ar": "اسم المستخدم أو كلمة المرور أو الدور غير صحيح"},
@@ -98,9 +104,9 @@ TRANSLATIONS = {
     "success": {"en": "Success", "ar": "نجاح"},
     "warning": {"en": "Warning", "ar": "تنبيه"},
     "error": {"en": "Error", "ar": "خطأ"},
-    "customer_dashboard": {"en": "Customer Dashboard", "ar": "لوحة العميل"},
+    "customer_dashboard": {"en": "CustomerDashboard", "ar": "لوحة العميل"},
     "staff_dashboard": {"en": "Staff Dashboard", "ar": "لوحة الموظف"},
-    "admin_dashboard": {"en": "Administrator Dashboard", "ar": "لوحة المدير"},
+    "admin_dashboard": {"en": "Admin Dashboard", "ar": "لوحة المدير"},
     "order_items": {"en": "Order Items", "ar": "عناصر الطلب"},
     "item_count": {"en": "Items", "ar": "العناصر"},
     "quick_stats": {"en": "Quick Stats", "ar": "إحصاءات سريعة"},
@@ -110,6 +116,48 @@ TRANSLATIONS = {
     "add_item": {"en": "Add Item", "ar": "إضافة صنف"},
     "delete_item": {"en": "Delete Item", "ar": "حذف الصنف"},
     "clear": {"en": "Clear", "ar": "مسح"},
+    "user_management": {"en": "User Management", "ar": "إدارة المستخدمين"},
+    "user_accounts": {"en": "User Accounts", "ar": "حسابات المستخدمين"},
+    "manage_user": {"en": "Manage User", "ar": "إدارة مستخدم"},
+    "image": {"en": "Image", "ar": "الصورة"},
+    "image_path": {"en": "Image Path", "ar": "مسار الصورة"},
+    "image": {"en": "Image", "ar": "الصورة"},
+    "image_available": {"en": "Image available", "ar": "الصورة متوفرة"},
+    "browse": {"en": "Browse", "ar": "استعراض"},
+    "no_image": {"en": "No image selected", "ar": "لا توجد صورة محددة"},
+    "yes": {"en": "Yes", "ar": "نعم"},
+    "no": {"en": "No", "ar": "لا"},
+    "select_image": {"en": "Select Image", "ar": "اختر صورة"},
+    "fill_user_fields": {"en": "Please enter username, password, and role", "ar": "يرجى إدخال اسم المستخدم وكلمة المرور والدور"},
+    "fill_user_fields_no_password": {"en": "Please enter username and role", "ar": "يرجى إدخال اسم المستخدم والدور"},
+    "select_user": {"en": "Please select a user", "ar": "يرجى اختيار مستخدم"},
+    "add_user": {"en": "Add User", "ar": "إضافة مستخدم"},
+    "update_user": {"en": "Update User", "ar": "تعديل المستخدم"},
+    "delete_user": {"en": "Delete User", "ar": "حذف المستخدم"},
+    "reset_password": {"en": "Reset Password", "ar": "إعادة تعيين كلمة المرور"},
+    "user_added": {"en": "User added successfully", "ar": "تمت إضافة المستخدم بنجاح"},
+    "user_updated": {"en": "User updated successfully", "ar": "تم تعديل المستخدم بنجاح"},
+    "user_deleted": {"en": "User deleted successfully", "ar": "تم حذف المستخدم بنجاح"},
+    "enter_new_password": {"en": "Please enter a new password", "ar": "يرجى إدخال كلمة مرور جديدة"},
+    "password_reset_success": {"en": "Password reset successfully", "ar": "تمت إعادة تعيين كلمة المرور بنجاح"},
+    "cards_view": {"en": "Cards View", "ar": "عرض البطاقات"},
+    "table_view": {"en": "Table View", "ar": "عرض الجدول"},
+    "selected_item": {"en": "Selected Item:", "ar": "الصنف المحدد:"},
+    "remove_item": {"en": "Remove Item", "ar": "حذف الصنف"},
+    
+    
+    
+    
+    
+    "menu_section": {"en": "Menu", "ar": "القائمة"},
+    "summary": {"en": "Summary", "ar": "الملخص"},
+    
+    "id": {"en": "ID", "ar": "المعرف"},
+
+    "sides": {"en": "Sides", "ar": "الطلبات الجانبية"},
+    "meals": {"en": "Meals", "ar": "الوجبات"},
+    "drinks": {"en": "Drinks", "ar": "المشروبات"},
+    "desserts": {"en": "Desserts", "ar": "الحلويات"},
 }
 
 
@@ -128,7 +176,14 @@ def configure_styles():
     except tk.TclError:
         pass
 
-    style.configure("App.Treeview", font=FONT_TEXT, rowheight=30, background="white", fieldbackground="white", foreground=COLORS["text"])
+    style.configure(
+    "App.Treeview",
+    font=FONT_TEXT,
+    rowheight=48,
+    background="white",
+    fieldbackground="white",
+    foreground=COLORS["text"]
+    )
     style.configure("App.Treeview.Heading", font=FONT_BUTTON, background=COLORS["surface_2"], foreground=COLORS["text"])
     style.map("App.Treeview", background=[("selected", "#dbeafe")], foreground=[("selected", COLORS["text"])])
 
@@ -176,7 +231,36 @@ def ghost_button(parent, text, command, width=12):
 def lang_button_text(language: str) -> str:
     return "AR" if language == "en" else "EN"
 
+try:
+    from PIL import Image, ImageTk
+except Exception:
+    Image = None
+    ImageTk = None
+    
+SIDEBAR_ICON_CACHE = {}
+def load_sidebar_icon(icon_name, size=(18, 18)):
+    if icon_name in SIDEBAR_ICON_CACHE:
+        return SIDEBAR_ICON_CACHE[icon_name]
 
+    if Image is None or ImageTk is None:
+        return None
+
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        icon_path = os.path.join(base_dir, "assets", "icons", f"{icon_name}.png")
+
+        if not os.path.exists(icon_path):
+            return None
+
+        img = Image.open(icon_path).convert("RGBA")
+        img = img.resize(size, Image.LANCZOS)
+        tk_img = ImageTk.PhotoImage(img)
+
+        SIDEBAR_ICON_CACHE[icon_name] = tk_img
+        return tk_img
+    except Exception:
+        return None
+    
 def make_card(parent, title=""):
     frame = tk.LabelFrame(
         parent,
@@ -223,14 +307,19 @@ def pack_side_for_language(language, default_ltr="left"):
 
 
 def build_sidebar(parent, language, title, menu_items):
-    sidebar = tk.Frame(parent, bg=COLORS["sidebar"], width=220)
-    sidebar.pack(side=pack_side_for_language(language, "left"), fill="y")
+    sidebar = tk.Frame(parent, bg=COLORS["sidebar"], width=250)
+    #sidebar.pack(side=pack_side_for_language(language, "left"), fill="y")
+    sidebar.pack(side="left", fill="y")
     sidebar.pack_propagate(False)
 
-    tk.Label(sidebar, text=title, bg=COLORS["sidebar"], fg="white", font=FONT_SUBTITLE).pack(anchor="w", padx=16, pady=(18, 14))
-
+    spacer = tk.Frame(sidebar, bg=COLORS["sidebar"], height=12)
+    spacer.pack(fill="x", pady=(10, 6))
     button_refs = []
     for item in menu_items:
+        icon_image = None
+
+        if "icon" in item:
+            icon_image = load_sidebar_icon(item["icon"], size=(18, 18))
         btn = tk.Button(
             sidebar,
             text=item["text"],
@@ -248,7 +337,10 @@ def build_sidebar(parent, language, title, menu_items):
             padx=18,
             pady=12,
         )
+        if icon_image:
+            btn.config(image=icon_image, compound="left")
         btn.pack(fill="x", padx=8, pady=4)
+        
         button_refs.append(btn)
 
     return sidebar, button_refs

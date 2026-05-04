@@ -16,22 +16,31 @@ def get_connection():
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
-
+def ensure_column_exists(cur, table_name: str, column_name: str, column_sql: str):
+    cur.execute(f"PRAGMA table_info({table_name})")
+    columns = [row[1] for row in cur.fetchall()]
+    if column_name not in columns:
+        cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}")
+        
+        
 def init_db():
     conn = get_connection()
     cur = conn.cursor()
 
     cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL
-        )
-        """
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL,
+        image_name TEXT,
+        image_data BLOB
     )
-
+    """
+)
+    ensure_column_exists(cur, "users", "image_name", "TEXT DEFAULT ''")
+    ensure_column_exists(cur, "users", "image_data", "BLOB")
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS menu_items (
@@ -71,6 +80,19 @@ def init_db():
         )
         """
     )
+    
+    cur.execute(
+    """
+    CREATE TABLE IF NOT EXISTS customer_cart_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        item_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price REAL NOT NULL,
+        total_price REAL NOT NULL
+    )
+    """
+)
 
     conn.commit()
     conn.close()
@@ -82,17 +104,17 @@ def seed_data():
     cur = conn.cursor()
 
     default_users = [
-        ("customer1", hash_password("1234"), "Customer"),
-        ("staff1", hash_password("1234"), "Staff"),
-        ("admin1", hash_password("1234"), "Administrator"),
+        ("customer1", hash_password("1234"), "Customer","", None),
+        ("staff1", hash_password("1234"), "Staff","", None),
+        ("admin1", hash_password("1234"), "Administrator","", None),
     ]
 
-    for username, password_hash, role in default_users:
+    for username, password_hash, role, image_name, image_data in default_users:
         cur.execute("SELECT id FROM users WHERE username = ?", (username,))
         if cur.fetchone() is None:
             cur.execute(
-                "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
-                (username, password_hash, role),
+                "INSERT INTO users (username, password_hash, role, image_name, image_data) VALUES (?, ?, ?, ?, ?)",
+                (username, password_hash, role, image_name, image_data),
             )
 
     cur.execute("SELECT COUNT(*) AS total FROM menu_items")
@@ -130,6 +152,160 @@ def validate_user(username: str, password: str, role: str):
     conn.close()
     return row
 
+
+def get_all_users():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT
+            id,
+            username,
+            role,
+            COALESCE(image_name, '') AS image_name,
+            CASE
+                WHEN image_data IS NOT NULL AND length(image_data) > 0 THEN 1
+                ELSE 0
+            END AS has_image
+        FROM users
+        ORDER BY id DESC
+        """)
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+def get_user_by_id(user_id: int):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, username, role, COALESCE(image_name, '') AS image_name, image_data FROM users WHERE id = ?",
+        (user_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return row
+
+
+def add_user(username: str, password: str, role: str, image_name: str = "", image_data: bytes = None):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "INSERT INTO users (username, password_hash, role, image_name, image_data) VALUES (?, ?, ?, ?, ?)",
+            (username, hash_password(password), role, image_name, image_data),
+        )
+        conn.commit()
+        return True, "ok"
+    except sqlite3.IntegrityError:
+        return False, "Username already exists"
+    finally:
+        conn.close()
+
+
+def update_user(user_id: int, username: str, role: str, password: str = "", image_name: str = "", image_data: bytes = None):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM users WHERE username = ? AND id <> ?", (username, user_id))
+        if cur.fetchone() is not None:
+            return False, "Username already exists"
+
+        if password:
+            cur.execute(
+                "UPDATE users SET username = ?, role = ?, password_hash = ?, image_name = ?, image_data = ? WHERE id = ?",
+                (username, role, hash_password(password), image_name, image_data, user_id),
+            )
+        else:
+            cur.execute(
+                "UPDATE users SET username = ?, role = ?, image_name = ?, image_data = ? WHERE id = ?",
+                (username, role, image_name, image_data, user_id),
+            )
+        conn.commit()
+        return True, "ok"
+    finally:
+        conn.close()
+
+
+def delete_user(user_id: int):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+        row = cur.fetchone()
+        if row is None:
+            return False, "User not found"
+        if row["username"] == "admin1":
+            return False, "Default admin cannot be deleted"
+
+        cur.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        return True, "ok"
+    finally:
+        conn.close()
+
+
+def reset_user_password(user_id: int, new_password: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(new_password), user_id))
+        conn.commit()
+        return True, "ok"
+    finally:
+        conn.close()
+
+
+def get_cart_items_for_user(username: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, username, item_name, quantity, unit_price, total_price
+        FROM customer_cart_items
+        WHERE username = ?
+        ORDER BY id ASC
+        """,
+        (username,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+
+def clear_cart_for_user(username: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "DELETE FROM customer_cart_items WHERE username = ?",
+        (username,),
+    )
+    conn.commit()
+    conn.close()
+
+
+def save_cart_for_user(username: str, cart_items):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("DELETE FROM customer_cart_items WHERE username = ?", (username,))
+
+    for item in cart_items:
+        cur.execute(
+            """
+            INSERT INTO customer_cart_items
+            (username, item_name, quantity, unit_price, total_price)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                item["item_name"],
+                int(item["quantity"]),
+                float(item["unit_price"]),
+                float(item["total_price"]),
+            ),
+        )
+
+    conn.commit()
+    conn.close()
 
 def get_categories():
     conn = get_connection()
@@ -242,6 +418,22 @@ def get_latest_order_for_customer(customer: str):
     order = cur.fetchone()
     conn.close()
     return order
+
+def get_orders_for_customer(customer: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT *
+        FROM orders
+        WHERE customer = ?
+        ORDER BY id DESC
+        """,
+        (customer,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows
 
 
 def get_all_orders():

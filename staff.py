@@ -45,8 +45,8 @@ class StaffFrame(tk.Frame):
             self.controller.language,
             t("staff_dashboard", self.controller.language),
             [
-                {"text": f"📋  {t('orders', self.controller.language)}", "command": lambda: self.show_view("orders")},
-                {"text": f"🚦  {t('queue_control', self.controller.language)}", "command": lambda: self.show_view("queue")},
+                {"text": t("orders", self.controller.language), "icon": "orders", "command": lambda: self.show_view("orders")},
+                {"text": t("queue_control", self.controller.language), "icon": "queue", "command": lambda: self.show_view("queue")},
             ],
         )
 
@@ -89,6 +89,14 @@ class StaffFrame(tk.Frame):
         self.stat_total.pack(side="left", fill="x", expand=True, padx=4)
         self.stat_active = make_stat_card(stats, "⏳", t("active_orders", self.controller.language), "0", COLORS["warning"])
         self.stat_active.pack(side="left", fill="x", expand=True, padx=4)
+        
+        self.stat_ready = make_stat_card(
+            stats, "✅", t("ready_orders", self.controller.language), "0", COLORS["success"])
+        self.stat_ready.pack(side="left", fill="x", expand=True, padx=4)
+
+        self.stat_completed = make_stat_card(
+            stats, "✔", t("completed_orders", self.controller.language), "0", COLORS["primary_2"])
+        self.stat_completed.pack(side="left", fill="x", expand=True, padx=4)
 
         card = make_card(page, t("orders", self.controller.language))
         card.pack(fill="both", expand=True)
@@ -105,7 +113,7 @@ class StaffFrame(tk.Frame):
         main.pack(fill="both", expand=True)
 
         left = make_card(main, t("queue_control", self.controller.language))
-        right = make_card(main, t("summary", self.controller.language))
+        right = make_card(main, t("Order_Actions", self.controller.language))
         left.pack(side=pack_side_for_language(self.controller.language, "left"), fill="both", expand=True, padx=(0, 6))
         right.pack(side=pack_side_for_language(self.controller.language, "right"), fill="both", expand=False, padx=(6, 0))
 
@@ -140,15 +148,26 @@ class StaffFrame(tk.Frame):
 
     def load_orders(self):
         self.order_cache = get_all_orders()
+    
         for tree in [self.orders_tree, self.queue_tree]:
             for row in tree.get_children():
                 tree.delete(row)
-
+    
         total_orders = len(self.order_cache)
         active_orders = 0
+        ready_orders = 0
+        completed_orders = 0
+    
         for order in self.order_cache:
-            if order["status"] in ("Queued", "Preparing", "Ready"):
+            status = order["status"]
+    
+            if status in ("Queued", "Preparing", "Ready"):
                 active_orders += 1
+            if status == "Ready":
+                ready_orders += 1
+            if status == "Completed":
+                completed_orders += 1
+    
             self.orders_tree.insert(
                 "",
                 tk.END,
@@ -157,20 +176,28 @@ class StaffFrame(tk.Frame):
                     order["customer"],
                     order["items_summary"],
                     f"OMR {order['total_price']:.3f}",
-                    order["status"],
+                    status,
                     order["queue_position"],
                     order["created_at"],
                 ),
             )
+    
             self.queue_tree.insert(
                 "",
                 tk.END,
-                values=(order["id"], order["customer"], order["status"], order["queue_position"]),
+                values=(
+                    order["id"],
+                    order["customer"],
+                    status,
+                    order["queue_position"]
+                ),
             )
-
+    
         self.stat_total.winfo_children()[1].config(text=str(total_orders))
         self.stat_active.winfo_children()[1].config(text=str(active_orders))
-
+        self.stat_ready.winfo_children()[1].config(text=str(ready_orders))
+        self.stat_completed.winfo_children()[1].config(text=str(completed_orders))
+    
     def update_selected_status(self, new_status):
         lang = self.controller.language
         selected = self.queue_tree.selection()

@@ -27,7 +27,6 @@ class App(tk.Tk):
         super().__init__()
         init_db()
         configure_styles()
-
         self.language = "en"
         self.current_username = ""
         self.current_role = "Customer"
@@ -36,6 +35,7 @@ class App(tk.Tk):
         self.title(t("app_title", self.language))
         self.geometry("1320x780")
         self.minsize(1180, 700)
+        self.state("zoomed")
         self.configure(bg=COLORS["bg"])
 
         self.build_header()
